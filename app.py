@@ -47,16 +47,27 @@ if tool == "Analytics App":
         st.subheader("Update data")
         if st.button("Add new hourly record"):
             new_row = df.iloc[-1].copy()
-            new_row["datetime"] += pd.Timedelta(hours=1)
+            new_dt = new_row["datetime"] + pd.Timedelta(hours=1)
+            new_row["datetime"] = new_dt
+
+            new_row["hour"] = new_dt.hour
+            new_row["month"] = new_dt.month
+            new_row["dayofyear"] = new_dt.dayofyear
+            new_row["date"] = new_dt.date()
+
+            cols_to_nan = ["solar_irradiation", "ambient_temperature", "solar_energy_generated",
+                           "energy_consumption", "net_energy"]
+            new_row[cols_to_nan] = pd.NA
+
             st.session_state.df = pd.concat(
                 [df, pd.DataFrame([new_row])],
                 ignore_index=True
             )
-            st.success("New data added")
 
-        df = st.session_state.df
+            st.success("New hourly record added")
+   
 
-         #Conflict handling
+        #Conflict handling
         duplicates = df.duplicated(subset="datetime").sum()
         st.write(f"Conflicting timestamps: {duplicates}")
 
@@ -78,6 +89,7 @@ if tool == "Analytics App":
         }).reset_index()
         st.subheader("Daily aggregated data")
         st.dataframe(daily)
+
 
         #Visualizations
         st.subheader("Daily Energy Profiles")
