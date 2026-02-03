@@ -43,6 +43,15 @@ if tool == "Analytics App":
         st.subheader("Loaded data preview")
         st.dataframe(df.head(10000))
 
+        st.subheader("Dataset summary")
+        st.write("Rows:", len(df))
+        st.write(
+            "Date range:",
+            df["datetime"].min(),
+            "→",
+            df["datetime"].max()
+        )
+
         #Update with new data
         st.subheader("Update data")
         if st.button("Add new hourly record"):
@@ -65,6 +74,9 @@ if tool == "Analytics App":
             )
 
             st.success("New hourly record added")
+            df = st.session_state.df
+   
+
    
 
         #Conflict handling
@@ -78,6 +90,58 @@ if tool == "Analytics App":
             st.success("Conflicts resolved")
 
         df = st.session_state.df
+        
+        #Missing data handling
+        st.subheader("Missing data handling (seasonality-aware)")
+
+        numeric_cols = [
+            "solar_irradiation",
+            "ambient_temperature",
+            "solar_energy_generated",
+            "energy_consumption",
+            "net_energy"
+        ]
+
+        df = st.session_state.df.copy()
+
+        missing_rows = df[df[numeric_cols].isna().any(axis=1)]
+
+        st.write("Rows with missing values:", len(missing_rows))
+
+        if len(missing_rows) > 0 and st.button("Estimate missing values using historical patterns"):
+            for idx in missing_rows.index:
+                current_dt = df.loc[idx, "datetime"]
+
+                # same hour one year ago
+                past_year_dt = current_dt - pd.DateOffset(years=1)
+                past_year_row = df[df["datetime"] == past_year_dt]
+                
+                # previous hour
+                prev_row = df[df["datetime"] == (current_dt - pd.Timedelta(hours=1))]
+
+                for col in numeric_cols:
+                    
+                    if col == "solar_irradiation" or col == "solar_energy_generated":
+                        hour = current_dt.hour
+                        if hour < 8 or hour > 20:
+                            df.at[idx, col] = 0
+                            continue  
+                            
+                    values = []
+
+                    if not past_year_row.empty:
+                        values.append(past_year_row.iloc[0][col])
+
+                    if not prev_row.empty:
+                        values.append(prev_row.iloc[0][col])
+
+                    if values:
+                        df.at[idx, col] = sum(values) / len(values)
+
+            st.session_state.df = df
+            st.success("Missing values estimated using seasonality-aware method")
+
+
 
         
         #Aggregations
