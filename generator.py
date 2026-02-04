@@ -1,5 +1,6 @@
-import pandas as pd
+import calendar
 import numpy as np
+import pandas as pd
 
 def generate_synthetic_data():
     datetime_index = pd.date_range(
@@ -11,10 +12,11 @@ def generate_synthetic_data():
     df = pd.DataFrame({"datetime": datetime_index})
     df["hour"] = df["datetime"].dt.hour
     df["month"] = df["datetime"].dt.month
+    df["day"] = df["datetime"].dt.day
     df["dayofyear"] = df["datetime"].dt.dayofyear
 
     df["solar_irradiation"] = df.apply(
-        lambda x: generate_solar_irradiation(x["hour"], x["month"]), axis=1
+        lambda x: generate_solar_irradiation(x["hour"], x["month"], x["day"]), axis=1
     )
 
     df["ambient_temperature"] = df.apply(
@@ -42,7 +44,7 @@ def generate_synthetic_data():
 
  
 
-def generate_solar_irradiation(hour, month):
+def generate_solar_irradiation(hour, month, day):
     monthly_max_irradiation = {
         1: 481, 2: 553, 3: 725, 4: 902,
         5: 926, 6: 925, 7: 923, 8: 891,
@@ -52,8 +54,22 @@ def generate_solar_irradiation(hour, month):
     sunset = 20
     if hour < sunrise or hour > sunset:
         return 0
+
+    #Porcentaje del mes pasado
+    days_in_month = calendar.monthrange(2025, month)[1]
+    progress = (day - 1) / days_in_month
+
+    current_max = monthly_max_irradiation[month]
+
+    if month == 12:
+        next_month = 1
+    else:
+        next_month = month + 1
+
+    next_max = monthly_max_irradiation[next_month]
     
-    max_val = monthly_max_irradiation[month]
+    max_val = (1 - progress) * current_max + progress * next_max
+
     value = max_val * np.sin(np.pi * (hour - sunrise) / (sunset - sunrise))
     noise = np.random.normal(0, 40)
     return max(value + noise, 0)
